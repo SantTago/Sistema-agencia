@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agência de Mídia Social - Controle</title>
+    <style>
+       body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #e3f2fd;
+    color: #333;
+    box-sizing: border-box;
+}
+
+h1, h2 {
+    color: #0288d1;
+    text-align: center;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: #ffffff;
+    overflow-x: auto;
+    display: block;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    word-wrap: break-word; /* Permite quebra de palavras longas */
+}
+
+th {
+    background-color: #bbdefb;
+}
+
+button {
+    padding: 5px 10px;
+    margin: 5px 0;
+    cursor: pointer;
+    background-color: #0288d1;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #0277bd;
+}
+
+.completed {
+    background-color: #009e05;
+}
+
+.received-yes {
+    background-color: #66bb6a;
+    color: white;
+}
+
+.received-no {
+    background-color: #ef5350;
+    color: white;
+}
+
+.summary {
+    margin-top: 20px;
+    font-size: 18px;
+    color: #0288d1;
+    text-align: center;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    table {
+        font-size: 14px; /* Ajusta o tamanho da fonte para telas menores */
+    }
+
+    th, td {
+        padding: 8px;
+    }
+
+    .summary {
+        font-size: 16px;
+    }
+
+    button {
+        font-size: 14px;
+    }
+}
+
+    </style>
+</head>
+<body>
+    <h1>Controle da Agência de Mídia Social</h1>
+
+    <section>
+        <h2>Clientes e Planos</h2>
+        <div>
+            <label for="clientName">Nome do Cliente:</label>
+            <input type="text" id="clientName">
+
+            <label for="clientProfession">Profissão:</label>
+            <input type="text" id="clientProfession">
+
+            <label for="clientPlan">Plano:</label>
+            <select id="clientPlan">
+                <option value="segunda-quarta-sexta">Segunda, Quarta e Sexta</option>
+                <option value="segunda-a-sexta">De Segunda a Sexta</option>
+                <option value="diario">Diário</option>
+            </select>
+
+            <label for="clientValue">Valor Mensal (R$):</label>
+            <input type="number" id="clientValue" min="0" step="0.01">
+
+            <button onclick="addClient()">Adicionar Cliente</button>
+        </div>
+
+        <table id="clientsTable">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Profissão</th>
+                    <th>Plano</th>
+                    <th>Valor Mensal (R$)</th>
+                    <th>Recebido</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Clientes serão adicionados aqui dinamicamente -->
+            </tbody>
+        </table>
+
+        <div class="summary">
+            <strong>Total Mensal (R$):</strong> <span id="totalValue">0.00</span>
+        </div>
+    </section>
+
+    <section>
+        <h2>Controle de Posts</h2>
+        <div>
+            <label for="viewMode">Exibir:</label>
+            <select id="viewMode" onchange="renderPostTable()">
+                <option value="semana-1">Semana 1</option>
+                <option value="semana-2">Semana 2</option>
+                <option value="semana-3">Semana 3</option>
+                <option value="semana-4">Semana 4</option>
+            </select>
+
+            <button onclick="finalizeWeek()">Finalizar Semana</button>
+            <button onclick="finalizeMonth()">Finalizar Mês</button>
+            <button onclick="downloadData()">Baixar Dados</button>
+        </div>
+
+        <table id="postTable">
+            <!-- Tabela dinâmica será renderizada aqui -->
+        </table>
+    </section>
+
+    <section>
+        <h2>Informações Gerais</h2>
+        <p id="currentDate"></p>
+    </section>
+
+    <script>
+        const clients = [];
+        const posts = {}; // Objeto para armazenar os posts por semana
+
+        function addClient() {
+            const name = document.getElementById('clientName').value;
+            const profession = document.getElementById('clientProfession').value;
+            const plan = document.getElementById('clientPlan').value;
+            const value = parseFloat(document.getElementById('clientValue').value);
+
+            if (name && profession && plan && !isNaN(value)) {
+                clients.push({ name, profession, plan, value, received: false });
+                renderClientsTable();
+                updateTotalValue();
+                saveData();
+                document.getElementById('clientName').value = '';
+                document.getElementById('clientProfession').value = '';
+                document.getElementById('clientValue').value = '';
+            } else {
+                alert('Por favor, preencha todas as informações do cliente.');
+            }
+        }
+
+        function toggleReceived(index) {
+            clients[index].received = !clients[index].received;
+            renderClientsTable();
+            saveData();
+        }
+
+        function removeClient(index) {
+            clients.splice(index, 1);
+            renderClientsTable();
+            updateTotalValue();
+            saveData();
+        }
+
+        function renderClientsTable() {
+            const tbody = document.getElementById('clientsTable').querySelector('tbody');
+            tbody.innerHTML = '';
+
+            clients.forEach((client, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${client.name}</td>
+                    <td>${client.profession}</td>
+                    <td>${client.plan}</td>
+                    <td>R$ ${client.value.toFixed(2)}</td>
+                    <td>
+                        <button class="${client.received ? 'received-yes' : 'received-no'}" onclick="toggleReceived(${index})">
+                            ${client.received ? 'Sim' : 'Não'}
+                        </button>
+                    </td>
+                    <td>
+                        <button onclick="removeClient(${index})">Remover</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            renderPostTable();
+        }
+
+        function updateTotalValue() {
+            const total = clients.reduce((sum, client) => sum + client.value, 0);
+            document.getElementById('totalValue').textContent = total.toFixed(2);
+        }
+
+        function renderPostTable() {
+            const mode = document.getElementById('viewMode').value;
+            const postTable = document.getElementById('postTable');
+
+            postTable.innerHTML = '';
+
+            const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = `<th>Cliente</th>` + days.map(day => `<th>${day}</th>`).join('');
+            thead.appendChild(headerRow);
+            postTable.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            clients.forEach(client => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${client.name}</td>` + days.map(day => {
+                    const id = `${client.name}-${day}-${mode}`;
+                    const completed = posts[id] ? 'completed' : '';
+                    return `<td id="${id}" class="${completed}" onclick="togglePost('${id}')"></td>`;
+                }).join('');
+                tbody.appendChild(row);
+            });
+
+            postTable.appendChild(tbody);
+        }
+
+        function togglePost(id) {
+            posts[id] = !posts[id];
+            const cell = document.getElementById(id);
+            if (cell) cell.classList.toggle('completed');
+            saveData();
+        }
+
+        function finalizeWeek() {
+            const mode = document.getElementById('viewMode').value;
+
+            Object.keys(posts).forEach(id => {
+                if (id.endsWith(mode)) {
+                    posts[id] = true;
+                    document.getElementById(id)?.classList.add('completed');
+                }
+            });
+
+            saveData();
+            alert(`Semana ${mode} finalizada com sucesso!`);
+        }
+
+        function finalizeMonth() {
+            Object.keys(posts).forEach(id => {
+                posts[id] = true;
+                document.getElementById(id)?.classList.add('completed');
+            });
+
+            saveToFile();
+        }
+
+        function saveToFile() {
+            const data = {
+                clients,
+                posts
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `controle_agencia_${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+        }
+
+        function saveData() {
+            const data = {
+                clients,
+                posts
+            };
+            localStorage.setItem('socialMediaControl', JSON.stringify(data));
+        }
+
+        function loadData() {
+            const savedData = localStorage.getItem('socialMediaControl');
+            if (savedData) {
+                const { clients: savedClients, posts: savedPosts } = JSON.parse(savedData);
+                clients.push(...savedClients);
+                Object.assign(posts, savedPosts);
+                renderClientsTable();
+                renderPostTable();
+                updateTotalValue();
+            }
+        }
+
+        function displayDateTime() {
+            const date = new Date();
+            const formattedDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const formattedTime = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('currentDate').textContent = `Data e Hora Atual: ${formattedDate} - ${formattedTime}`;
+        }
+
+        function downloadData() {
+        const data = {
+            clients,
+            posts
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `controle_agencia_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        }
+
+
+        setInterval(displayDateTime, 1000);
+        loadData();
+    </script>
+</body>
+</html>
